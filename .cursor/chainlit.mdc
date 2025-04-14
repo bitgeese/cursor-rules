@@ -1,0 +1,68 @@
+---
+title: Chainlit (v2.2+) Rules
+globs:
+  - "/app/ui//*.py"
+  - "**/chainlit_*.py"
+---
+
+# Chainlit (v2.2+) Rules
+
+* **Use `cl.Message` for displaying primary textual responses to the user. Ensure content is clear and well-formatted (Markdown supported).**
+    * Explanation: This is the fundamental element for communication back to the user in the chat interface. Clear and formatted content enhances user experience.
+
+* **Employ `cl.Action` buttons for user choices or triggering specific backend functions. Ensure action name, value, and description are descriptive.**
+    * Explanation: Actions provide interactive elements for users to guide the conversation or invoke specific functionalities. Descriptive labels are crucial for usability.
+
+* **Utilize `cl.AskUserMessage`, `cl.AskFileMessage`, `cl.AskActionMessage` for requesting specific input types from the user. Handle potential timeouts and user cancellations gracefully.**
+    * Explanation: These specialized functions streamline the process of asking for user input, files, or action selections, improving interaction flow. Robust handling of edge cases like timeouts is necessary.
+
+* **Leverage `cl.Step` (`@cl.step`) to visualize intermediate processing steps or tool usage, providing transparency to the user. Use appropriate type arguments ('llm', 'tool', 'embedding', etc.).**
+    * Explanation: Steps show the user the agent's "thought process," building trust and providing context for the final response. Using correct types helps categorize these steps visually.
+
+* **Use `cl.Text` elements with `display='side'` or `display='inline'` to show source documents or supplementary information related to a message.**
+    * Explanation: This allows linking supporting evidence or context directly to a message, crucial for RAG applications to show the source of information.
+
+* **Organize complex UI interactions using `cl.ChatProfile` where appropriate to allow users to select different modes or configurations.**
+    * Explanation: Chat Profiles enable users to switch between different personas, LLMs, or configurations defined in the backend, offering flexibility.
+
+* **Implement the main chat logic within functions decorated with `@cl.on_message`. This function receives the user's `cl.Message` object.**
+    * Explanation: This decorator designates the primary entry point for handling user messages and driving the application's response logic.
+
+* **Use `@cl.on_chat_start` for initialization tasks specific to a new chat session, such as setting up session state or loading initial resources.**
+    * Explanation: This ensures that each chat session begins with a clean and correctly initialized state, essential for managing user-specific data.
+
+* **Use `@cl.on_stop` for cleanup actions when a user explicitly stops the chat session.**
+    * Explanation: Allows for graceful termination and resource cleanup when a user ends the interaction.
+
+* **Use `@cl.on_settings_update` when using `cl.ChatSettings` to react to changes made by the user in the UI.**
+    * Explanation: Enables dynamic adjustments to application behavior based on user modifications to defined chat settings.
+
+* **Ensure all callback functions (`@cl.on_message`, `@cl.on_chat_start`, etc.) are defined as `async def` due to Chainlit's asynchronous nature.**
+    * Explanation: Chainlit is built on asyncio. All potentially blocking operations within callbacks must use `async` and `await` to prevent freezing the application.
+
+* **Use `cl.user_session` to store and retrieve data specific to a user's chat session (e.g., conversation history, loaded resources, user ID).**
+    * Explanation: The user session is the primary mechanism for maintaining state across multiple interactions within a single chat. It's crucial for storing context like agent memory or loaded data.
+
+* **Initialize session state variables within `@cl.on_chat_start` using `cl.user_session.set(key, value)`.**
+    * Explanation: Proper initialization ensures that session variables exist before being accessed in subsequent message handlers, preventing runtime errors.
+
+* **Retrieve session state within `@cl.on_message` or other callbacks using `cl.user_session.get(key, default?)`.**
+    * Explanation: This is the standard way to access session-specific data needed to process user messages or perform actions.
+
+* **Be mindful of the default keys stored in `user_session`: `id`, `user`, `chat_profile`, `chat_settings`, `env`. Avoid overwriting these unless intended.**
+    * Explanation: Chainlit uses these keys internally. Overwriting them unintentionally can lead to unexpected behavior or errors.
+
+* **For accessing conversation history specifically, consider using `cl.chat_context.get()` (if applicable in v2.2+) as a potential alternative or supplement to manual history management in `user_session`.**
+    * Explanation: Chainlit might offer built-in context management, which could simplify accessing conversation history compared to manually storing messages in the user session. Verify availability in the target version.
+
+* **All I/O-bound operations (LLM calls, database queries, API requests, file processing) within Chainlit callbacks MUST be awaited.**
+    * Explanation: Failure to `await` asynchronous I/O operations will block the asyncio event loop, making the application unresponsive.
+
+* **Use `asyncio` compatible libraries for I/O tasks (e.g., `aiohttp` for HTTP requests, async database drivers like `asyncpg`, async Azure SDKs).**
+    * Explanation: Standard blocking libraries will negate the benefits of asyncio. Using async-native libraries is essential for performance in Chainlit.
+
+* **Leverage `await cl.Message(...).send()` or `await msg.update()` for sending/updating messages asynchronously.**
+    * Explanation: These methods are designed to work within the async framework, ensuring messages are sent or updated without blocking.
+
+* **Use `await cl.sleep()` for artificial delays or polling, but prefer event-driven patterns where possible.**
+    * Explanation: While `cl.sleep` is non-blocking, relying on polling can be inefficient. Use event-driven approaches (like callbacks) when feasible.
