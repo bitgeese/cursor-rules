@@ -1,0 +1,66 @@
+---
+title: Literal AI Observability Rules for RDK Copilot
+globs:
+  - "**/app/**/*.py" # Target LLM/agent interaction points
+  - "**/utils/observability.py"
+  - "**/services/llm/*.py"
+---
+
+# Literal AI Observability Rules
+
+* **Initialize the `LiteralClient` once, preferably in a central configuration or startup module. Use environment variables for the API key.**
+    * Explanation: Centralized initialization ensures a single client instance manages background tasks like buffering and sending data efficiently. API keys must be handled securely via environment variables.
+
+* **Configure the Literal AI client with appropriate environment context (e.g., 'dev', 'staging', 'prod') using environment variables or client configuration.**
+    * Explanation: Tagging logs by environment allows for filtering and analysis specific to development, testing, or production phases.
+
+* **Associate logs with code releases/versions if applicable, using environment variables or client configuration.**
+    * Explanation: Linking logs to specific code releases helps identify regressions or track the performance of new features in production.
+
+* **Understand and utilize Literal AI's logging hierarchy: `Thread` (conversation), `Run` (trace/agent execution), `Step` (span/function execution), `Generation` (LLM call).**
+    * Explanation: This hierarchy provides a structured way to represent complex LLM interactions. Mapping the application's flow (e.g., user chat, agent process) onto this structure is key for meaningful observability.
+
+* **Structure logging calls to reflect this hierarchy accurately for chatbot interactions (Threads containing Runs/Steps) and agent executions (Runs containing Steps/Generations).**
+    * Explanation: Correctly nesting runs, steps, and generations within threads ensures the trace accurately reflects the application's execution path, aiding debugging and analysis.
+
+* **Use the `@literalai_client.step` decorator to automatically trace synchronous and asynchronous functions. This captures function name, inputs, outputs, and timings.**
+    * Explanation: The decorator is the simplest way to instrument functions, automatically capturing essential data for observability with minimal code changes.
+
+* **For more granular control or within complex logic blocks, use the `with literalai_client.step(...) as step:` context manager.**
+    * Explanation: The context manager provides fine-grained control over step creation, allowing custom data capture within the `with` block.
+
+* **Specify the `type` parameter for steps (`llm`, `tool`, `retrieval`, `rerank`, `embedding`, `run`, `undefined`) to categorize operations correctly in the Literal AI UI.**
+    * Explanation: Correctly typing steps enables better filtering, visualization, and analysis within the Literal AI platform based on the operation performed.
+
+* **Pass relevant `name`, `input`, `output`, and `metadata` to steps for comprehensive logging. Be mindful of sensitive data; sanitize if necessary before logging inputs/outputs.**
+    * Explanation: Rich context within steps (inputs, outputs, custom metadata) is crucial for debugging and understanding behavior. Sensitive data must be excluded or sanitized before logging.
+
+* **Establish parent-child relationships between steps using `parent_id` when using the context manager or manual `start_step`/`end_step` for nested operations.**
+    * Explanation: Explicitly defining parent-child relationships ensures that nested operations are correctly visualized as sub-steps within a larger trace.
+
+* **Leverage Literal AI's native LangChain/LangGraph integration for automatic tracing if configured. Ensure the integration is correctly set up according to Literal AI documentation.**
+    * Explanation: Automatic integration reduces manual instrumentation effort for standard LangChain/LangGraph flows. Proper setup is required for it to capture traces effectively.
+
+* **If using manual tracing alongside the integration (e.g., for custom functions), ensure step names or IDs align to avoid redundant or confusing logs and maintain a coherent trace.**
+    * Explanation: Combining automatic and manual tracing requires care to ensure the resulting trace is logical and easy to follow. Manual steps should complement, not duplicate, automatically captured information.
+
+* **Log key inputs (e.g., user query, retrieved documents) and outputs (e.g., final answer, tool results) associated with LangChain/LangGraph runs.**
+    * Explanation: Capturing the critical data points at the boundaries of LangChain/LangGraph execution provides essential context for evaluating the overall run.
+
+* **Log user feedback explicitly if captured (e.g., thumbs up/down) by associating it with the relevant Run or Thread.**
+    * Explanation: User feedback is a vital signal for evaluating application performance and user satisfaction. Linking it directly to the interaction trace enables targeted analysis.
+
+* **Log errors encountered during LLM calls, tool executions, or other steps using `step.error = exception_object` or similar mechanisms within the SDK.**
+    * Explanation: Explicitly logging errors within the trace context simplifies debugging by pinpointing where and why failures occurred.
+
+* **Utilize `step.metadata` to store project-specific context, such as model parameters, RAG configuration details, or agent state information.**
+    * Explanation: Metadata allows storing arbitrary key-value pairs relevant to the step, providing deeper context beyond standard inputs/outputs for later analysis.
+
+* **For multimodal interactions (if applicable), log image, audio, or video data using Literal AI Attachments.**
+    * Explanation: Literal AI supports logging non-textual data as attachments, enabling observability for multimodal applications.
+
+* **Ensure `thread_id` is consistently used across multiple runs within the same user conversation.**
+    * Explanation: The `thread_id` links multiple interactions (runs/steps) into a single coherent conversation view, essential for analyzing conversational agents.
+
+* **Associate threads with user identifiers (`participant_id`) for user-level analytics.**
+    * Explanation: Linking threads to specific users enables tracking user journeys, identifying user-specific issues, and analyzing usage patterns.
