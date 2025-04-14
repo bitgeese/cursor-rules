@@ -1,0 +1,100 @@
+---
+title: LangChain (v0.3+) & LangGraph (v0.2+) Rules for RDK Copilot
+globs:
+  - "**/app/**/*.py" # Target LLM/agent interaction points
+  - "**/services/llm/*.py"
+  - "**/agents/**/*.py"
+  - "**/chains/**/*.py"
+---
+
+# LangChain (v0.3+) & LangGraph (v0.2+) Rules
+
+* **Prefer LangChain Expression Language (LCEL) using the pipe operator (`|`) for composing chains over legacy Chain subclasses. LCEL offers better streaming, async support, and observability.**
+    * Explanation: LCEL is the modern, recommended way to build LangChain applications, offering significant advantages in composability, execution control (streaming, async), and integration with monitoring tools like LangSmith or Literal AI. Legacy chains are being deprecated.
+
+* **Utilize the standard `Runnable` interface methods (`invoke`, `stream`, `batch`, `ainvoke`, `astream`, `abatch`) for interacting with chains and components.**
+    * Explanation: The Runnable interface provides a consistent API across all LCEL components, simplifying interaction and ensuring compatibility with features like streaming and batching.
+
+* **Use `ChatPromptTemplate` for structuring prompts for Chat Models, clearly defining system, user, and assistant roles. Use `MessagesPlaceholder` for inserting chat history.**
+    * Explanation: Chat models perform best with structured message history. `ChatPromptTemplate` and `MessagesPlaceholder` provide the standard way to format prompts correctly for conversational context.
+
+* **Employ Output Parsers or Tool Calling to structure LLM responses, especially when needing specific formats like JSON or Pydantic models. Handle parsing errors gracefully.**
+    * Explanation: Raw LLM output is often unstructured text. Output Parsers or the model's Tool Calling feature are necessary to convert this into usable data formats for downstream application logic. Robust error handling for malformed outputs is essential.
+
+* **Ensure all custom components intended for use in LCEL chains implement the `Runnable` interface correctly.**
+    * Explanation: For custom logic to integrate seamlessly into LCEL pipelines, it must adhere to the `Runnable` protocol, implementing the required methods (e.g., `invoke`, `ainvoke`).
+
+* **Use specific integration packages (e.g., `langchain-openai`, `langchain-anthropic`, `langchain-community` for FAISS wrapper) instead of legacy imports from `langchain` or `langchain-community` where applicable.**
+    * Explanation: LangChain v0.3+ emphasizes modularity. Using specific integration packages ensures cleaner dependencies and access to the latest features for that integration.
+
+* **Instantiate `ChatOpenAI` or other LLM clients with appropriate parameters (model name, temperature, API keys via environment variables).**
+    * Explanation: Correctly configuring the LLM client is fundamental. Parameters like temperature control creativity, and API keys must be sourced securely from the environment.
+
+* **Leverage Tool Calling capabilities of modern chat models (like GPT-4o) for reliable structured output and function execution, potentially reducing the need for complex output parsers.**
+    * Explanation: Tool calling allows the LLM to request function execution with structured arguments, often providing a more robust mechanism for specific tasks than trying to parse unstructured text.
+
+* **Use `DocumentLoader` integrations to load data from various sources (Azure Storage Blob, local files, etc.).**
+    * Explanation: Document loaders provide a standard interface for ingesting data from different locations into the LangChain `Document` format, the first step in most RAG pipelines.
+
+* **Apply appropriate `TextSplitter` strategies (e.g., `RecursiveCharacterTextSplitter`) to chunk documents effectively for embedding models, considering token limits and semantic meaning.**
+    * Explanation: Splitting documents into appropriately sized, semantically coherent chunks is critical for effective embedding and retrieval in RAG systems.
+
+* **Use suitable `Embedding` models (e.g., from `langchain-openai` or other providers).**
+    * Explanation: The choice of embedding model impacts the quality of semantic search. Use models appropriate for the task and data.
+
+* **Utilize Vector Stores (`FAISS`, `AzureSearch` via LangChain integration) for storing and retrieving document embeddings.**
+    * Explanation: Vector stores are specialized databases for efficient similarity search on embeddings, forming the core of the retrieval step in RAG.
+
+* **When using FAISS, ensure the index (`IndexFlatL2`, `IndexIVFFlat`, `IndexHNSW`) is built and saved/loaded correctly. Choose the index type based on performance and accuracy needs.**
+    * Explanation: FAISS requires explicit index creation, training (for some types), and persistence. The choice of index type involves trade-offs.
+
+* **When using Azure Search, configure the `AzureSearch` vector store integration appropriately with endpoint, credentials (use `DefaultAzureCredential`), and index details.**
+    * Explanation: Proper configuration is needed to connect LangChain to the Azure AI Search service for vector storage and retrieval.
+
+* **Implement retrieval logic using `Retrievers`. Convert Vector Stores to retrievers using `.as_retriever()` method.**
+    * Explanation: Retrievers provide the interface for fetching relevant documents based on a query. Vector stores typically expose this interface via `.as_retriever()`.
+
+* **Consider advanced RAG techniques if needed: query transformation, hybrid search (combining Azure Search keyword search and FAISS vector search), re-ranking, contextual compression.**
+    * Explanation: Basic RAG can be improved with techniques that refine the query, combine different search methods, or filter/reorder retrieved documents for better relevance.
+
+* **Construct RAG chains using LCEL, passing context (retrieved documents) effectively to the LLM prompt.**
+    * Explanation: The core RAG pattern involves fetching documents and then passing them, along with the query, into the LLM prompt using LCEL composition.
+
+* **Prefer LangGraph for building new agents, especially stateful or cyclic ones, over the legacy `AgentExecutor`.**
+    * Explanation: LangGraph provides more control, explicit state management, and better handling of complex, potentially looping agent interactions compared to the older `AgentExecutor`.
+
+* **Define `Tool`s clearly with descriptive names, descriptions, and accurate input schemas (using Pydantic v2 models is recommended).**
+    * Explanation: The LLM relies heavily on the tool's name and description to decide when to use it. An accurate schema ensures the LLM provides the correct arguments.
+
+* **Ensure tools handle potential errors gracefully and return informative results or error messages to the agent.**
+    * Explanation: Agents need clear feedback from tools to proceed correctly or handle failures. Tools should not crash the agent loop.
+
+* **Define LangGraph state using `TypedDict`. Use `Annotated[List[...], operator.add]` for accumulating messages or actions.**
+    * Explanation: `TypedDict` provides structure to the graph's state. The `Annotated` pattern allows for specific update logic, like appending to lists, which is common for chat history or action logs.
+
+* **Define LangGraph nodes using functions or LCEL runnables that accept the state dictionary and return an update dictionary.**
+    * Explanation: Nodes are the computational units. They operate on the current state and return modifications to be applied to the state.
+
+* **Set a clear `entry_point` for the LangGraph.**
+    * Explanation: Every graph needs a defined starting node where execution begins when the graph is invoked.
+
+* **Use `add_edge` for unconditional transitions between LangGraph nodes.**
+    * Explanation: Defines a fixed path where one node always follows another.
+
+* **Use `add_conditional_edges` for branching logic in LangGraph, typically based on LLM output or tool results. Ensure the condition function returns keys present in the mapping.**
+    * Explanation: Enables dynamic routing within the graph based on runtime conditions, essential for agent decision-making (e.g., call tool vs. respond).
+
+* **Ensure all paths through the LangGraph can eventually reach the `END` node to prevent infinite loops.**
+    * Explanation: Cyclic graphs must have termination conditions to avoid getting stuck in loops. The `END` node signifies completion.
+
+* **Compile the `StateGraph` into a runnable using `.compile()` before execution.**
+    * Explanation: The graph definition needs to be compiled into an executable `Runnable` object.
+
+* **Ensure all Pydantic models used for Tools, Output Parsing, or State definitions use Pydantic v2 syntax.**
+    * Explanation: LangChain v0.3+ is built on Pydantic v2. All custom models interacting with LangChain must use v2 features and syntax.
+
+* **Replace `pydantic_v1` imports if any exist in the codebase.**
+    * Explanation: Compatibility imports for Pydantic v1 are no longer needed and should be removed.
+
+* **Use Python 3.10+ features like `|` for Union types in Pydantic models and type hints for cleaner code.**
+    * Explanation: Leverage modern Python syntax supported by LangChain v0.3+ and Pydantic v2 for improved readability.
