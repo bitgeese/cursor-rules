@@ -1,0 +1,75 @@
+---
+title: Azure SDK Best Practices for RDK Copilot
+globs:
+  - "**/utils/azure_*.py"
+  - "**/services/azure/*.py"
+  - "**/app/integrations/azure_*.py"
+---
+
+# Azure SDK Rules (Identity, Search, Storage Blob)
+
+* **MUST use token-based authentication via the `azure-identity` library. Avoid using connection strings or secrets directly in code.**
+    * Explanation: Token-based authentication (via AAD/Entra ID) is more secure, allows for granular permissions (least privilege), and avoids embedding secrets in code or configuration.
+
+* **Use `DefaultAzureCredential` as the primary method for authenticating SDK clients. It handles different environments (local dev vs. deployed) automatically.**
+    * Explanation: `DefaultAzureCredential` simplifies code by trying multiple credential sources (environment variables, managed identity, Azure CLI, VS Code) in a standard order, adapting to the execution context.
+
+* **Ensure developers configure their local environment for `DefaultAzureCredential` (e.g., `az login`, VS Code Azure Account extension).**
+    * Explanation: For local development, `DefaultAzureCredential` relies on developers being authenticated through tools like the Azure CLI or VS Code extension.
+
+* **For deployed environments (e.g., Azure App Service, VMs, AKS), configure Managed Identities (System-assigned or User-assigned) for `DefaultAzureCredential` to use.**
+    * Explanation: Managed Identities provide a secure, automatic way for Azure resources to authenticate to other Azure services without needing explicit credentials stored in the application.
+
+* **If using User-assigned Managed Identity, specify the client ID via environment variable (`AZURE_CLIENT_ID`) or `DefaultAzureCredential` keyword argument.**
+    * Explanation: `DefaultAzureCredential` needs to be told which User-assigned identity to use if multiple are available or if it's not the system-assigned one.
+
+* **Handle potential `CredentialUnavailableError` from `azure.identity` if no suitable credential can be found.**
+    * Explanation: If the environment is not configured correctly (e.g., not logged into Azure CLI locally, no Managed Identity configured in Azure), `DefaultAzureCredential` will fail. This needs to be handled gracefully.
+
+* **Instantiate `SearchClient` using the service endpoint, index name, and a `DefaultAzureCredential` instance.**
+    * Explanation: This is the standard way to create a client for interacting with a specific Azure AI Search index using secure, token-based authentication.
+
+* **Use `SearchClient.search()` for executing search queries. Utilize parameters like `search_text`, `filter`, `select`, `top`, `skip`, `order_by`, `vector_queries` effectively.**
+    * Explanation: The `search` method is the primary way to query the index. Understanding and using its parameters allows for precise and efficient searching, including vector and hybrid search.
+
+* **Handle pagination of search results returned by `search()` (which returns a `SearchItemPaged`).**
+    * Explanation: Search results are iterable pages. Code must handle iterating through these pages to process all results if necessary.
+
+* **Use `SearchClient.get_document()` to retrieve specific documents by key.**
+    * Explanation: Provides direct access to a single document when its key is known.
+
+* **Use `SearchClient.upload_documents()`, `SearchClient.merge_documents()`, or `SearchClient.delete_documents()` for batch document management. Understand the difference between upload (upsert) and merge.**
+    * Explanation: These methods allow efficient bulk operations on the index. `upload` replaces existing documents or inserts new ones, while `merge` updates specific fields of existing documents.
+
+* **Handle potential errors during indexing operations by inspecting the `IndexingResult` objects returned by batch methods.**
+    * Explanation: Batch operations return status information for each document processed. This must be checked to identify and handle any failures during indexing.
+
+* **Instantiate `SearchIndexClient` (using `DefaultAzureCredential`) for index management tasks (create, update, delete index) if needed, likely outside the main application flow.**
+    * Explanation: Index schema management is typically done separately from the main query/ingestion application logic, using the dedicated `SearchIndexClient`.
+
+* **Instantiate `BlobServiceClient` using the account URL and `DefaultAzureCredential`.**
+    * Explanation: Standard way to create a client for interacting with the Blob Storage service at the account level using secure authentication.
+
+* **Obtain `ContainerClient` instances from `BlobServiceClient.get_container_client()` or initialize directly with connection string/credential.**
+    * Explanation: `ContainerClient` is needed for container-level operations.
+
+* **Obtain `BlobClient` instances from `ContainerClient.get_blob_client()` or `BlobServiceClient.get_blob_client()` or initialize directly.**
+    * Explanation: `BlobClient` is required for operations on specific blobs.
+
+* **Use `ContainerClient` methods for container operations: `create_container()`, `delete_container()`, `list_blobs()` etc.**
+    * Explanation: Provides standard container management functionalities.
+
+* **Use `BlobClient` methods for blob operations: `upload_blob()`, `download_blob()`, `delete_blob()`, `exists()` etc.**
+    * Explanation: Provides standard blob management functionalities.
+
+* **When uploading large files with `BlobClient.upload_blob()`, be aware of automatic chunking behavior controlled by `max_single_put_size` and `max_concurrency`.**
+    * Explanation: The SDK handles large uploads efficiently by default, but understanding these parameters can help optimize performance if needed.
+
+* **When downloading blobs with `BlobClient.download_blob()`, use `blob_data.readinto(stream)` or `blob_data.readall()` to consume the content from the returned `StorageStreamDownloader`.**
+    * Explanation: The `download_blob` method returns a stream object that needs to be read to get the actual blob content.
+
+* **Utilize the async Azure SDK clients (`*.aio`) and `await` their methods when working in an async context (e.g., Chainlit).**
+    * Explanation: Crucial for performance in async applications like Chainlit. Using synchronous SDK calls will block the event loop. The Azure SDK provides async versions of clients (e.g., `BlobServiceClient.aio`, `SearchClient.aio`).
+
+* **Ensure async clients are properly closed when no longer needed (e.g., using `async with` or `await client.close()`).**
+    * Explanation: Proper cleanup of async resources like network connections is necessary to avoid resource leaks.
