@@ -1,0 +1,100 @@
+---
+title: Python Project Best Practices for RDK Copilot
+globs:
+  - "**/*.py"
+---
+
+# Python Project Rules (Python 3.10+, Poetry, NLTK)
+
+* **Utilize Structural Pattern Matching (`match`/`case`) for complex conditional logic where appropriate, enhancing readability over nested `if-elif-else`.**
+    * Explanation: Python 3.10's pattern matching provides a more declarative and often clearer way to handle branching based on data structure, improving code maintainability.
+
+* **Use the `|` operator for type hints involving unions (e.g., `int | float`) instead of `typing.Union`.**
+    * Explanation: This Python 3.10+ syntax is more concise and readable for defining union types.
+
+* **Leverage parenthesized context managers for multi-line `with` statements to improve readability.**
+    * Explanation: Allows cleaner formatting when using multiple context managers in a single `with` statement, enhancing code clarity.
+
+* **Take advantage of improved error messages in Python 3.10+ for faster debugging.**
+    * Explanation: More precise error messages (SyntaxError, AttributeError, etc.) help pinpoint issues quicker, reducing development time.
+
+* **Adhere strictly to PEP 8 guidelines for code layout, naming conventions, and documentation strings.**
+    * Explanation: PEP 8 is the standard style guide for Python. Consistency improves readability and collaboration across the team.
+
+* **Use 4 spaces for indentation. Do not use tabs.**
+    * Explanation: The standard Python indentation practice, enforced by PEP 8.
+
+* **Limit lines to 79 characters (code) and 72 characters (docstrings/comments).**
+    * Explanation: Promotes readability, especially with side-by-side code reviews or multiple open files.
+
+* **Use appropriate blank lines to separate functions, classes, and logical sections within code.**
+    * Explanation: Improves visual structure and separation of code blocks.
+
+* **Follow import ordering: standard library, third-party, local application. Use absolute imports preferably.**
+    * Explanation: Standard import ordering makes dependencies clear and avoids confusion. Absolute imports are generally less ambiguous than relative ones.
+
+* **Apply correct whitespace around operators and inside expressions/brackets/parentheses as defined by PEP 8.**
+    * Explanation: Consistent whitespace usage significantly impacts readability.
+
+* **Use type hints (`typing` module, `|` operator) for all function signatures (arguments and return types) and important variables.**
+    * Explanation: Type hints improve code understanding, enable static analysis tools (like mypy), and reduce runtime errors.
+
+* **Prefer specific types over `Any`. Use `TypeVar` for generic functions and classes.**
+    * Explanation: Using specific types provides more information to developers and type checkers. `Any` should be used sparingly.
+
+* **Use `inspect.get_annotations()` for runtime introspection of annotations in Python 3.10+.**
+    * Explanation: This is the standard and recommended way to access annotations programmatically in modern Python.
+
+* **Use `async`/`await` syntax correctly for all I/O-bound operations in async contexts (Chainlit, async LangChain calls, Azure async SDKs).**
+    * Explanation: Essential for non-blocking I/O in asynchronous frameworks to maintain performance and responsiveness.
+
+* **Prefer `asyncio` library features (e.g., `asyncio.gather`, `asyncio.run`) for managing concurrent async tasks.**
+    * Explanation: Use the standard library tools for managing asynchronous operations effectively.
+
+* **Implement robust error handling using `try...except...finally` blocks.**
+    * Explanation: Gracefully handle expected and unexpected errors to prevent application crashes and provide informative feedback or logs.
+
+* **Define custom exception classes for application-specific errors where appropriate.**
+    * Explanation: Custom exceptions make error handling logic clearer and more specific to the application domain.
+
+* **Log exceptions effectively using a logging framework and potentially Literal AI.**
+    * Explanation: Proper logging is crucial for diagnosing issues in development and production.
+
+* **Manage all project dependencies using Poetry and the `pyproject.toml` file.**
+    * Explanation: Poetry provides reliable dependency management and packaging for Python projects.
+
+* **Specify dependencies under `[project.dependencies]` (or `[tool.poetry.dependencies]`) with appropriate version constraints (e.g., `^`, `~=`).**
+    * Explanation: Clearly define project requirements and allowed version ranges in `pyproject.toml`.
+
+* **Declare development dependencies under `[tool.poetry.group.dev.dependencies]` (e.g., pytest, ruff, mypy).**
+    * Explanation: Separates dependencies needed only for development/testing from runtime dependencies.
+
+* **Keep the `poetry.lock` file checked into version control to ensure reproducible builds.**
+    * Explanation: The lock file guarantees that the exact same dependency versions are used across all environments (dev, CI, prod), preventing "works on my machine" issues.
+
+* **Use `poetry install` to install dependencies based on the lock file.**
+    * Explanation: This command ensures the environment matches the locked state.
+
+* **Use `poetry add` to add new dependencies to `pyproject.toml` and the lock file.**
+    * Explanation: The standard way to introduce new dependencies into the project.
+
+* **Use `poetry update` cautiously to update dependencies according to `pyproject.toml` constraints and regenerate the lock file.**
+    * Explanation: Updates dependencies but should be done deliberately, followed by testing, as it can introduce breaking changes.
+
+* **Run commands within the project's virtual environment using `poetry run...`.**
+    * Explanation: Ensures commands execute with the correct dependencies isolated by Poetry's virtual environment.
+
+* **Specify rules for common NLTK tasks if used (e.g., tokenization, stemming, lemmatization). Ensure necessary NLTK data packages are handled (e.g., downloaded during setup or Docker build).**
+    * Explanation: If NLTK is part of the project, establish conventions for its usage and ensure its data dependencies are managed correctly during setup or deployment.
+
+* **Use f-strings for string formatting (introduced in Python 3.6).**
+    * Explanation: F-strings are generally the most readable and performant way to format strings in modern Python.
+
+* **Write clear and concise comments where code logic is not self-evident. Focus on *why* something is done, not *what* it does.**
+    * Explanation: Good comments aid understanding, but overly verbose or obvious comments add noise.
+
+* **Follow project-specific naming conventions for modules, classes, functions, and variables if they differ from or extend PEP 8.**
+    * Explanation: Consistency within the project is key, even if minor deviations from PEP 8 are agreed upon.
+
+* **Ensure code is modular and follows principles like DRY (Don't Repeat Yourself).**
+    * Explanation: Writing modular, reusable code improves maintainability and reduces redundancy.
